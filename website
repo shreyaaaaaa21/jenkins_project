@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tempo — Metronome</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --accent:#7c3aed;
+      --muted:#94a3b8;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;min-height:100vh;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background: linear-gradient(180deg,var(--bg) 0%, #071024 60%);
+      color:#e6eef8;display:grid;place-items:center;padding:32px;
+    }
+    .container{
+      width:100%;max-width:960px;background:linear-gradient(180deg,var(--card), rgba(11,18,32,0.9));
+      border-radius:16px;padding:28px;box-shadow:0 10px 30px rgba(2,6,23,0.6);backdrop-filter:blur(6px);
+      display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:center;
+    }
+    h1{margin:0 0 8px;font-size:28px;letter-spacing:-0.02em}
+    p.lead{margin:0;color:var(--muted)}
+
+    /* Left: big pulse & controls */
+    .left{padding:12px}
+    .pulse-wrap{display:flex;flex-direction:column;gap:14px;align-items:center}
+    .visual{
+      width:220px;height:220px;border-radius:50%;display:grid;place-items:center;
+      background: radial-gradient(circle at 30% 20%, rgba(124,58,237,0.18), transparent 10%), var(--glass);
+      border:1px solid rgba(255,255,255,0.03);box-shadow:0 6px 30px rgba(124,58,237,0.08) inset;
+      transition:transform .08s ease, box-shadow .08s ease;
+    }
+    .beat{font-size:48px;font-weight:700;color:var(--accent)}
+
+    .controls{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+    .btn{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px 14px;border-radius:10px;color:inherit;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--accent),#5b21b6);border:none}
+    .slider-row{width:100%;display:flex;align-items:center;gap:12px}
+    .slider-row input[type=range]{flex:1}
+    .value{min-width:56px;text-align:center}
+
+    /* Right: settings */
+    .right{padding:12px;border-left:1px dashed rgba(255,255,255,0.03)}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+    .group{margin-bottom:18px}
+
+    .tap-area{background:rgba(255,255,255,0.02);border-radius:8px;padding:12px;text-align:center}
+    .tap-area p{margin:0;color:var(--muted)}
+
+    footer{grid-column:1/-1;text-align:center;margin-top:14px;color:var(--muted);font-size:13px}
+
+    @media (max-width:880px){
+      .container{grid-template-columns:1fr;}
+      .right{border-left:none;border-top:1px dashed rgba(255,255,255,0.03);}
+    }
+  </style>
+</head>
+<body>
+  <div class="container" role="application" aria-label="Tempo metronome">
+    <div class="left">
+      <h1>Tempo</h1>
+      <p class="lead">A simple metronome — set BPM, start, tap tempo, and choose subdivisions.</p>
+
+      <div class="pulse-wrap" style="margin-top:18px">
+        <div id="visual" class="visual" aria-hidden="true">
+          <div class="beat" id="beatLabel">4/4</div>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-top:12px;justify-content:center">
+          <button id="startBtn" class="btn primary" aria-pressed="false">Start</button>
+          <button id="tapBtn" class="btn" title="Tap tempo (tap 4 times)">Tap</button>
+          <button id="stopBtn" class="btn">Stop</button>
+        </div>
+
+        <div class="controls" style="margin-top:14px">
+          <div class="slider-row" style="width:420px;max-width:100%">
+            <label for="bpm" style="min-width:46px">BPM</label>
+            <input id="bpm" type="range" min="40" max="240" value="100">
+            <div class="value" id="bpmVal">100</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="right" aria-label="Settings">
+      <div class="group">
+        <label>Time Signature</label>
+        <select id="timeSig" class="btn" style="width:100%">
+          <option value="4">4 / 4</option>
+          <option value="3">3 / 4</option>
+          <option value="6">6 / 8</option>
+          <option value="5">5 / 4</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label>Subdivision</label>
+        <select id="subDiv" class="btn" style="width:100%">
+          <option value="1">Quarter (1)</option>
+          <option value="2">Eighths (2)</option>
+          <option value="3">Triplets (3)</option>
+          <option value="4">Sixteenth (4)</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label>Sound</label>
+        <select id="soundSel" class="btn" style="width:100%">
+          <option value="beep">Beep</option>
+          <option value="click">Click</option>
+          <option value="tone">Tone</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label>Tap Tempo</label>
+        <div class="tap-area">
+          <p>Tap the button rapidly to set tempo</p>
+          <div style="margin-top:10px"><strong id="tapBpm">—</strong> BPM</div>
+        </div>
+      </div>
+
+    </aside>
+
+    <footer>Built with HTML, CSS & JavaScript — responsive and accessible.</footer>
+  </div>
+
+  <script>
+    // Simple metronome using WebAudio API
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // UI elements
+    const bpmRange = document.getElementById('bpm');
+    const bpmVal = document.getElementById('bpmVal');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const tapBtn = document.getElementById('tapBtn');
+    const visual = document.getElementById('visual');
+    const beatLabel = document.getElementById('beatLabel');
+    const timeSig = document.getElementById('timeSig');
+    const subDiv = document.getElementById('subDiv');
+    const soundSel = document.getElementById('soundSel');
+    const tapBpm = document.getElementById('tapBpm');
+
+    bpmVal.textContent = bpmRange.value;
+
+    bpmRange.addEventListener('input', () => { bpmVal.textContent = bpmRange.value; });
+
+    // Scheduling
+    let isRunning = false;
+    let currentBeat = 0;
+    let timerId = null;
+    let nextTickTime = 0;
+
+    function makeClick(time, isDownbeat){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = soundSel.value === 'beep' ? 'sine' : (soundSel.value === 'click' ? 'square' : 'triangle');
+      osc.frequency.value = isDownbeat ? 1000 : 700;
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(0.5, time + 0.001);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(time); osc.stop(time + 0.12);
+    }
+
+    function scheduleTick(){
+      const bpm = Number(bpmRange.value);
+      const subdivision = Number(subDiv.value);
+      const secondsPerBeat = 60.0 / bpm;
+      const interval = secondsPerBeat / subdivision;
+      const now = audioCtx.currentTime;
+
+      // schedule a single tick at nextTickTime
+      const isDownbeat = (currentBeat % (Number(timeSig.value) * subdivision) === 0);
+      makeClick(nextTickTime || now, isDownbeat);
+
+      // visual pulse
+      pulseVisual(isDownbeat);
+
+      // advance
+      currentBeat++;
+      nextTickTime = (nextTickTime || now) + interval;
+    }
+
+    function tickLoop(){
+      scheduleTick();
+      // schedule next using setTimeout based on how far nextTickTime is
+      const now = audioCtx.currentTime;
+      const wait = Math.max(0, (nextTickTime - now) - 0.02);
+      timerId = setTimeout(tickLoop, wait * 1000);
+    }
+
+    function startMetronome(){
+      if (isRunning) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      isRunning = true;startBtn.setAttribute('aria-pressed','true');
+      currentBeat = 0; nextTickTime = audioCtx.currentTime + 0.05;
+      tickLoop();
+    }
+
+    function stopMetronome(){
+      if (!isRunning) return;
+      isRunning = false;startBtn.setAttribute('aria-pressed','false');
+      clearTimeout(timerId); timerId = null; nextTickTime = 0;
+      visual.style.transform = 'scale(1)';
+      visual.style.boxShadow = '';
+    }
+
+    startBtn.addEventListener('click', startMetronome);
+    stopBtn.addEventListener('click', stopMetronome);
+
+    // Visual pulse
+    function pulseVisual(isDown){
+      visual.style.transform = 'scale(1.06)';
+      visual.style.boxShadow = isDown ? '0 0 40px rgba(124,58,237,0.36)' : '0 0 18px rgba(124,58,237,0.18)';
+      beatLabel.textContent = isDown ? 'DOWN' : 'tick';
+      setTimeout(()=>{visual.style.transform='scale(1)';visual.style.boxShadow=''}, 110);
+    }
+
+    // Tap tempo
+    let tapTimes = [];
+    tapBtn.addEventListener('click', () => {
+      const t = performance.now();
+      tapTimes.push(t);
+      if (tapTimes.length > 6) tapTimes.shift();
+      if (tapTimes.length >= 2){
+        // compute averaged interval
+        let diffs = [];
+        for (let i=1;i<tapTimes.length;i++) diffs.push(tapTimes[i]-tapTimes[i-1]);
+        const avgMs = diffs.reduce((a,b)=>a+b,0)/diffs.length;
+        const tappedBpm = Math.round(60000/avgMs);
+        tapBpm.textContent = tappedBpm;
+        bpmRange.value = Math.min(240, Math.max(40, tappedBpm));
+        bpmVal.textContent = bpmRange.value;
+      }
+      // quick visual
+      visual.animate([{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:140});
+    });
+
+    // Keyboard shortcuts: space to start/stop, T to tap
+    window.addEventListener('keydown', (e)=>{
+      if (e.code === 'Space') { e.preventDefault(); isRunning ? stopMetronome() : startMetronome(); }
+      if (e.key.toLowerCase() === 't') { tapBtn.click(); }
+    });
+
+    // Update beat label when settings change
+    function updateBeatLabel(){
+      beatLabel.textContent = `${timeSig.value}/4`;
+    }
+    timeSig.addEventListener('change', updateBeatLabel);
+    updateBeatLabel();
+
+    // ensure AudioContext unlock on mobile
+    document.body.addEventListener('touchstart', ()=>{ if (audioCtx.state === 'suspended') audioCtx.resume(); }, {once:true});
+
+  </script>
+</body>
+</html>
